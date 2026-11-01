@@ -77,15 +77,19 @@ except (ImportError, OSError):
     pass
 
 pygame.mixer.init()
+pygame.mixer.music.load(audio_path)
+
+preloaded_movie = QMovie(gif_path)
+preloaded_movie.jumpToFrame(0)
+gif_size = preloaded_movie.frameRect().size()
 
 
 def play_animation():
     if getattr(app, "miku_window", None) is not None:
         return
 
-    movie = QMovie(gif_path)
+    movie = preloaded_movie
     movie.jumpToFrame(0)
-    gif_size = movie.frameRect().size()
 
     window = QWidget()
     app.miku_window = window
@@ -108,9 +112,8 @@ def play_animation():
         screen.center().x() - gif_size.width() // 2,
         screen.bottom() - gif_size.height() - 15,
     )
-
     window.movie = movie
-    pygame.mixer.music.load(audio_path)
+    window.movie = movie
     pygame.mixer.music.play()
     window.show()
     movie.start()
@@ -168,7 +171,11 @@ class SessionEventFilter(QAbstractNativeEventFilter):
                 native_message.message == self.WM_WTSSESSION_CHANGE
                 and native_message.wParam == self.WTS_SESSION_UNLOCK
             ):
-                play_animation()
+                if getattr(app, "unlock_timer", None) is None:
+                    app.unlock_timer = QTimer()
+                    app.unlock_timer.setSingleShot(True)
+                    app.unlock_timer.timeout.connect(play_animation)
+                app.unlock_timer.start(1000)
         except (TypeError, ValueError, ctypes.ArgumentError):
             pass
         return False, 0

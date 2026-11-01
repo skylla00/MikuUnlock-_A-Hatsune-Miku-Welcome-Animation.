@@ -175,7 +175,7 @@ class SessionEventFilter(QAbstractNativeEventFilter):
                     app.unlock_timer = QTimer()
                     app.unlock_timer.setSingleShot(True)
                     app.unlock_timer.timeout.connect(play_animation)
-                app.unlock_timer.start(1000)
+                app.unlock_timer.start(500)
         except (TypeError, ValueError, ctypes.ArgumentError):
             pass
         return False, 0

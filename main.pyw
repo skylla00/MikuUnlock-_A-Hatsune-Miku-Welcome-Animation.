@@ -14,36 +14,47 @@ from PyQt6.QtCore import (
 from PyQt6.QtGui import QMovie
 from PyQt6.QtWidgets import QApplication, QLabel, QWidget
 
+APP_MUTEX_NAME = "Local\\OhayoooMikuUnlock"
+STARTUP_APP_NAME = "MikuUnlock"
+ANIMATION_DURATION_MS = 3000
+FADE_DURATION_MS = 600
+
 
 kernel32 = ctypes.windll.kernel32
-kernel32.SetLastError(0)
-mutex_handle = kernel32.CreateMutexW(
-    None, True, "Local\\OhayoooMikuUnlock"
+kernel32.CreateMutexW.argtypes = (
+    wintypes.LPVOID,
+    wintypes.BOOL,
+    wintypes.LPCWSTR,
 )
+kernel32.CreateMutexW.restype = wintypes.HANDLE
+kernel32.SetLastError(0)
+mutex_handle = kernel32.CreateMutexW(None, True, APP_MUTEX_NAME)
 if kernel32.GetLastError() == 183:
     sys.exit(0)
 
 app = QApplication(sys.argv)
 
-script_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
-base_dir = getattr(sys, "_MEIPASS", script_dir)
+base_dir = getattr(
+    sys,
+    "_MEIPASS",
+    os.path.dirname(os.path.abspath(sys.argv[0])),
+)
 
-gif_path = next(
-    os.path.join(root, file)
-    for root, dirs, files in os.walk(base_dir)
-    if ".venv" not in dirs
-    for file in files
-    if os.path.basename(root).lower() == "images"
-    and file.lower().endswith(".gif")
+gif_path = os.path.join(
+    base_dir,
+    "assets",
+    "images",
+    "miku-hatsune-miku.gif",
 )
-audio_path = next(
-    os.path.join(root, file)
-    for root, dirs, files in os.walk(base_dir)
-    if ".venv" not in dirs
-    for file in files
-    if os.path.basename(root).lower() == "audio"
-    and file.lower().endswith((".mp3", ".wav", ".ogg"))
+audio_path = os.path.join(
+    base_dir,
+    "assets",
+    "audio",
+    "hello-miku.mp3",
 )
+for resource_path in (gif_path, audio_path):
+    if not os.path.isfile(resource_path):
+        sys.exit(f"Missing application resource: {resource_path}")
 
 if getattr(sys, "frozen", False):
     startup_command = os.path.abspath(sys.executable)
@@ -68,7 +79,7 @@ try:
     ) as run_key:
         winreg.SetValueEx(
             run_key,
-            "MikuUnlock",
+            STARTUP_APP_NAME,
             0,
             winreg.REG_SZ,
             startup_command,
@@ -79,17 +90,17 @@ except (ImportError, OSError):
 pygame.mixer.init()
 pygame.mixer.music.load(audio_path)
 
-preloaded_movie = QMovie(gif_path)
-preloaded_movie.jumpToFrame(0)
-gif_size = preloaded_movie.frameRect().size()
-
 
 def play_animation():
     if getattr(app, "miku_window", None) is not None:
         return
 
-    movie = preloaded_movie
+    movie = QMovie(gif_path)
     movie.jumpToFrame(0)
+    gif_size = movie.frameRect().size()
+    if gif_size.isEmpty():
+        movie.stop()
+        return
 
     window = QWidget()
     app.miku_window = window
@@ -113,13 +124,12 @@ def play_animation():
         screen.bottom() - gif_size.height() - 15,
     )
     window.movie = movie
-    window.movie = movie
     pygame.mixer.music.play()
     window.show()
     movie.start()
 
     fade_in = QPropertyAnimation(window, QByteArray(b"windowOpacity"))
-    fade_in.setDuration(600)
+    fade_in.setDuration(FADE_DURATION_MS)
     fade_in.setStartValue(0.0)
     fade_in.setEndValue(1.0)
     fade_in.start()
@@ -127,7 +137,7 @@ def play_animation():
 
     def start_fade_out():
         fade_out = QPropertyAnimation(window, QByteArray(b"windowOpacity"))
-        fade_out.setDuration(600)
+        fade_out.setDuration(FADE_DURATION_MS)
         fade_out.setStartValue(1.0)
         fade_out.setEndValue(0.0)
         fade_out.start()
@@ -138,9 +148,13 @@ def play_animation():
         movie.stop()
         pygame.mixer.music.stop()
         app.miku_window = None
+        window.deleteLater()
 
-    QTimer.singleShot(2400, start_fade_out)
-    QTimer.singleShot(3000, close_animation)
+    QTimer.singleShot(
+        ANIMATION_DURATION_MS - FADE_DURATION_MS,
+        start_fade_out,
+    )
+    QTimer.singleShot(ANIMATION_DURATION_MS, close_animation)
 
 
 class MSG(ctypes.Structure):
@@ -159,9 +173,6 @@ class SessionEventFilter(QAbstractNativeEventFilter):
     WTS_SESSION_UNLOCK = 8
     NOTIFY_FOR_THIS_SESSION = 0
 
-    def __init__(self):
-        super().__init__()
-
     def nativeEventFilter(self, event_type, message):
         try:
             native_message = ctypes.cast(
@@ -175,7 +186,7 @@ class SessionEventFilter(QAbstractNativeEventFilter):
                     app.unlock_timer = QTimer()
                     app.unlock_timer.setSingleShot(True)
                     app.unlock_timer.timeout.connect(play_animation)
-                app.unlock_timer.start(300)
+                app.unlock_timer.start(200)
         except (TypeError, ValueError, ctypes.ArgumentError):
             pass
         return False, 0

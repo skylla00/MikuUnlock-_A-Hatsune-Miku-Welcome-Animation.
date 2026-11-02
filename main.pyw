@@ -91,6 +91,8 @@ pygame.mixer.init()
 pygame.mixer.music.load(audio_path)
 
 
+
+
 def play_animation():
     if getattr(app, "miku_window", None) is not None:
         return
@@ -110,9 +112,14 @@ def play_animation():
         | Qt.WindowType.Tool
     )
     window.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+    window.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
+    window.setAutoFillBackground(False)
     window.setWindowOpacity(0.0)
 
     label = QLabel(window)
+    label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+    label.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
+    label.setAutoFillBackground(False)
     label.resize(gif_size)
     label.setMovie(movie)
     label.setScaledContents(True)
@@ -121,7 +128,7 @@ def play_animation():
     screen = app.primaryScreen().availableGeometry()
     window.move(
         screen.center().x() - gif_size.width() // 2,
-        screen.bottom() - gif_size.height() - 15,
+        screen.bottom() - gif_size.height(),
     )
     window.movie = movie
     pygame.mixer.music.play()
@@ -151,6 +158,7 @@ def play_animation():
         window.deleteLater()
 
     QTimer.singleShot(
+        
         ANIMATION_DURATION_MS - FADE_DURATION_MS,
         start_fade_out,
     )
@@ -186,7 +194,7 @@ class SessionEventFilter(QAbstractNativeEventFilter):
                     app.unlock_timer = QTimer()
                     app.unlock_timer.setSingleShot(True)
                     app.unlock_timer.timeout.connect(play_animation)
-                app.unlock_timer.start(200)
+                app.unlock_timer.start(300)
         except (TypeError, ValueError, ctypes.ArgumentError):
             pass
         return False, 0

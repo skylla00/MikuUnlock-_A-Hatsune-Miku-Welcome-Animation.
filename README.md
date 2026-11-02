@@ -1,6 +1,6 @@
-# Ohayooo!
+# MikuUnlock
 
-**Ohayooo!** is a Windows background application that displays and plays a short Hatsune Miku animation whenever the Windows session is unlocked.
+**MikuUnlock** is a Windows background application that displays and plays a short Hatsune Miku animation whenever the Windows session is unlocked.
 
 <p align="center">
   <img src="assets/images/miku-hatsune-miku.gif" alt="Hatsune Miku unlock animation" width="360">
